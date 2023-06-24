@@ -16,4 +16,4 @@ COPY main.py main.py
 RUN mkdir -p /data/logs
 
 # Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
+CMD ["python", "main.py"]

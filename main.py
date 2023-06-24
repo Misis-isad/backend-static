@@ -5,6 +5,7 @@ from hashlib import md5
 from os import getcwd, remove
 from fastapi import FastAPI, UploadFile, File, APIRouter
 from fastapi.responses import JSONResponse, FileResponse
+import uvicorn
 
 app = FastAPI()
 
@@ -70,6 +71,17 @@ def get_all_records():
     return records
 
 
+def delete_record(id: str):
+    print("deleting record from database")
+    conn = sqlite3.connect("files.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM files WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+
+    remove(getcwd() + "/static/" + id)
+
+
 app.on_event("startup")(startup)
 
 static_router = APIRouter(prefix="/static", tags=["static"])
@@ -107,7 +119,7 @@ def get_file(unique_id: str):
 @static_router.delete("/delete/file/{unique_id}")
 def delete_file(unique_id: str):
     try:
-        remove(getcwd() + "/static/" + unique_id)
+        delete_record(unique_id)
         return JSONResponse(content={"removed": True}, status_code=200)
     except FileNotFoundError:
         return JSONResponse(
@@ -120,3 +132,8 @@ def delete_file(unique_id: str):
 async def get_all():
     records = get_all_records()
     return JSONResponse(content={"records": records}, status_code=200)
+
+app.include_router(static_router)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=10000)
