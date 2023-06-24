@@ -3,11 +3,19 @@ import os
 from pydantic import BaseModel
 from hashlib import md5
 from os import getcwd, remove
-from fastapi import FastAPI, UploadFile, File, APIRouter
+from fastapi import FastAPI, UploadFile, File, APIRouter, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
+import dotenv
+
+dotenv.load_dotenv()
 
 app = FastAPI()
+
+# get DOMAIN value from .env file
+DOMAIN = os.getenv("DOMAIN")
+FILEURL = f"{DOMAIN}/static/file/"
+
 
 # create sqlite3 database with files table which contains id as str and filename as str
 
@@ -67,6 +75,8 @@ def get_all_records():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM files")
     records = cursor.fetchall()
+    # add file url to records
+    records = [(FILEURL+i[0], i[1])for i in records]
     conn.close()
     return records
 
@@ -88,16 +98,18 @@ static_router = APIRouter(prefix="/static", tags=["static"])
 
 
 @static_router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(None)):
     print("uploading file")
     # add record to database
+    if file.filename == None:
+        raise HTTPException(status_code=400, detail="No file provided")
     new_id = add_record(file.filename)
 
     with open(f"static/{new_id}", "wb") as image:
         content = await file.read()
         image.write(content)
         image.close()
-    return JSONResponse(content={"filename": file.filename}, status_code=200)
+    return JSONResponse(content={"link": FILEURL+str(new_id)}, status_code=200)
 
 
 @static_router.get("/download/{unique_id}")
