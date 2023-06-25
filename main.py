@@ -1,7 +1,7 @@
 import sqlite3
 import os
-from pydantic import BaseModel
-from hashlib import md5
+
+import uuid
 from os import getcwd, remove
 from fastapi import FastAPI, UploadFile, File, APIRouter, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
@@ -43,13 +43,16 @@ def startup():
 def add_record(filename: str) -> str:
     print("adding record to database")
     # generate unique id as md5 hash of filename and check if it exists in database
-    new_id = md5(filename.encode("utf-8")).hexdigest()
+    new_id = uuid.uuid4().hex
+    # get file extension frpom filename and add it to id
+    new_id += "." + filename.split(".")[-1]
     # check if id exists in database
     conn = sqlite3.connect("files.db")
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM files WHERE id=?", (new_id,))
     while cursor.fetchone():
-        new_id = md5(filename.encode("utf-8")).hexdigest()
+        new_id = uuid.uuid4().hex
+        new_id += "." + filename.split(".")[-1]
         cursor.execute("SELECT * FROM files WHERE id=?", (new_id,))
 
     cursor.execute("INSERT INTO files VALUES (?, ?)", (new_id, filename))
